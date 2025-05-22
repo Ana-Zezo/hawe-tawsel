@@ -128,86 +128,86 @@ class OrderController extends Controller
     //         'receiver_area_id' => $receiverAreaId
     //     ]);
     // }
-public function checkSingleCoordinate(Request $request): JsonResponse
-{
-    $request->validate([
-        'latitude' => 'required|numeric',
-        'longitude' => 'required|numeric',
-        'statusCheck' => 'required|in:sender,receiver',
-        'status' => 'required|in:outside,inside',
-        'sender_latitude' => 'nullable|numeric',
-        'sender_longitude' => 'nullable|numeric'
-    ]);
-
-    $lat = $request->latitude;
-    $lng = $request->longitude;
-    $statusCheck = $request->statusCheck;
-    $status = $request->status;
-
-    // جلب جميع المناطق للتحقق من الإحداثيات
-    $areas = Area::all();
-
-    // تحديد المنطقة الحالية بناءً على الإحداثيات
-    $foundArea = $this->findAreaByCoordinates($lat, $lng, $areas);
-
-    if (!$foundArea) {
-       return ApiResponse::errorResponse(false, __('messages.location_not_found'));
-    }
-
-    if ($statusCheck === 'sender') {
-        return ApiResponse::sendResponse(true, __('messages.location_found'), [
-            'area_sender_id' => $foundArea->id,
-            'sender_latitude' => $lat,
-            'sender_longitude' => $lng
-        ]);
-    }
-
-    if ($statusCheck === 'receiver') {
+    public function checkSingleCoordinate(Request $request): JsonResponse
+    {
         $request->validate([
-            'sender_latitude' => 'required|numeric',
-            'sender_longitude' => 'required|numeric'
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'statusCheck' => 'required|in:sender,receiver',
+            'status' => 'required|in:outside,inside',
+            'sender_latitude' => 'nullable|numeric',
+            'sender_longitude' => 'nullable|numeric'
         ]);
 
-        // تحديد منطقة المرسل
-        $senderArea = $this->findAreaByCoordinates($request->sender_latitude, $request->sender_longitude, $areas);
+        $lat = $request->latitude;
+        $lng = $request->longitude;
+        $statusCheck = $request->statusCheck;
+        $status = $request->status;
 
-        if (!$senderArea) {
-           return ApiResponse::errorResponse(false, __('messages.sender_location_invalid'));
+        // جلب جميع المناطق للتحقق من الإحداثيات
+        $areas = Area::all();
+
+        // تحديد المنطقة الحالية بناءً على الإحداثيات
+        $foundArea = $this->findAreaByCoordinates($lat, $lng, $areas);
+
+        if (!$foundArea) {
+            return ApiResponse::errorResponse(false, __('messages.location_not_found'));
         }
 
-        // منطقة المستقبل
-        $receiverArea = $foundArea;
-
-        if ($status === 'inside' && $senderArea->id !== $receiverArea->id) {
-              return ApiResponse::errorResponse(false, __('messages.inside_area_error'));
+        if ($statusCheck === 'sender') {
+            return ApiResponse::sendResponse(true, __('messages.location_found'), [
+                'area_sender_id' => $foundArea->id,
+                'sender_latitude' => $lat,
+                'sender_longitude' => $lng
+            ]);
         }
 
-        if ($status === 'outside' && $senderArea->id === $receiverArea->id) {
-            return ApiResponse::errorResponse(false, __('messages.outside_area_error'));
+        if ($statusCheck === 'receiver') {
+            $request->validate([
+                'sender_latitude' => 'required|numeric',
+                'sender_longitude' => 'required|numeric'
+            ]);
+
+            // تحديد منطقة المرسل
+            $senderArea = $this->findAreaByCoordinates($request->sender_latitude, $request->sender_longitude, $areas);
+
+            if (!$senderArea) {
+                return ApiResponse::errorResponse(false, __('messages.sender_location_invalid'));
+            }
+
+            // منطقة المستقبل
+            $receiverArea = $foundArea;
+
+            if ($status === 'inside' && $senderArea->id !== $receiverArea->id) {
+                return ApiResponse::errorResponse(false, __('messages.inside_area_error'));
+            }
+
+            if ($status === 'outside' && $senderArea->id === $receiverArea->id) {
+                return ApiResponse::errorResponse(false, __('messages.outside_area_error'));
+            }
+
+            return ApiResponse::sendResponse(true, __('messages.valid_location'), [
+                'area_sender_id' => $senderArea->id,
+                'area_receiver_id' => $receiverArea->id
+            ]);
         }
 
-         return ApiResponse::sendResponse(true, __('messages.valid_location'), [
-            'area_sender_id' => $senderArea->id,
-            'area_receiver_id' => $receiverArea->id
-        ]);
+        return ApiResponse::errorResponse(false, __('messages.invalid_request'));
+
     }
 
-    return ApiResponse::errorResponse(false, __('messages.invalid_request'));
-
-}
-
-/**
- * البحث عن المنطقة التي تحتوي على الإحداثيات
- */
-private function findAreaByCoordinates($lat, $lng, $areas)
-{
-    foreach ($areas as $area) {
-        if ($this->checkLocation($lat, $lng, $area)) {
-            return $area;
+    /**
+     * البحث عن المنطقة التي تحتوي على الإحداثيات
+     */
+    private function findAreaByCoordinates($lat, $lng, $areas)
+    {
+        foreach ($areas as $area) {
+            if ($this->checkLocation($lat, $lng, $area)) {
+                return $area;
+            }
         }
+        return null;
     }
-    return null;
-}
 
 
 
@@ -240,7 +240,7 @@ private function findAreaByCoordinates($lat, $lng, $areas)
     }
     private function checkLocation($lat, $lng, $area): bool
     {
-        $polygon = $area->coordinates; 
+        $polygon = $area->coordinates;
         if (!is_array($polygon)) {
             return false;
         }
@@ -287,7 +287,7 @@ private function findAreaByCoordinates($lat, $lng, $areas)
         $a = sin($latDiff / 2) ** 2 + cos($lat1) * cos($lat2) * sin($lngDiff / 2) ** 2;
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
-        $distance = $earthRadius * $c; 
+        $distance = $earthRadius * $c;
 
         return $distance <= $radius;
     }
@@ -359,15 +359,15 @@ private function findAreaByCoordinates($lat, $lng, $areas)
 
         return ApiResponse::sendResponse(
             true,
-           __('messages.order_retrieved_successful'),
+            __('messages.order_retrieved_successful'),
             new OrderResource($order),
         );
     }
-   public function showDetails(Order $order): JsonResponse
+    public function showDetails(Order $order): JsonResponse
     {
-        
-       $driver = Auth::user();
-       $currency = $driver->country->currency;
+
+        $driver = Auth::user();
+        $currency = $driver->country->currency;
         return ApiResponse::sendResponse(
             true,
             __('messages.order_retrieved_successful'),
@@ -381,58 +381,58 @@ private function findAreaByCoordinates($lat, $lng, $areas)
 
 
 
-// public function getAreasForUserCountry(): JsonResponse
+    // public function getAreasForUserCountry(): JsonResponse
 // {
 //     $user = auth()->user(); // جلب بيانات المستخدم المصادق عليه
 //     $country_id = $user->country_id; // الحصول على الدولة الخاصة بالمستخدم
 
-//     if (!$country_id) {
+    //     if (!$country_id) {
 //         return ApiResponse::errorResponse(false, __('messages.no_country_found'));
 //     }
 
-//     // جلب جميع المدن المرتبطة بدولة المستخدم مع المناطق الخاصة بها
+    //     // جلب جميع المدن المرتبطة بدولة المستخدم مع المناطق الخاصة بها
 //     $cities = Area::where('country_id', $country_id)->get();
 
-//     if ($cities->isEmpty()) {
+    //     if ($cities->isEmpty()) {
 //         return ApiResponse::errorResponse(false, __('messages.no_regions_found'));
 //     }
 
-//     return ApiResponse::sendResponse(true, __('messages.areas_retrieved_successful'), $cities);
+    //     return ApiResponse::sendResponse(true, __('messages.areas_retrieved_successful'), $cities);
 // }
-public function getAreasForUserCountry(): JsonResponse
-{
-    $user = auth()->user();
-    $country_id = $user->country_id;
+    public function getAreasForUserCountry(): JsonResponse
+    {
+        $user = auth()->user();
+        $country_id = $user->country_id;
 
-    if (!$country_id) {
-        return ApiResponse::errorResponse(false, __('messages.no_country_found'));
+        if (!$country_id) {
+            return ApiResponse::errorResponse(false, __('messages.no_country_found'));
+        }
+
+        // تحديد اللغة المطلوبة من الهيدر أو القيمة الافتراضية
+        $lang = request()->header('lang', app()->getLocale());
+
+        // جلب جميع المناطق للدولة مع جميع بياناتها بدون `name_ar` و `name_en`
+        $cities = Area::where('country_id', $country_id)->get()->map(function ($city) use ($lang) {
+            return [
+                'id' => $city->id,
+                'name' => $lang === 'ar' ? $city->name_ar : $city->name_en,
+                'country_id' => $city->country_id,
+                'coordinates' => $city->coordinates,
+                'status' => $city->status,
+                'latitude' => $city->latitude,
+                'longitude' => $city->longitude,
+                'radius' => $city->radius,
+                'created_at' => $city->created_at,
+                'updated_at' => $city->updated_at,
+            ];
+        });
+
+        if ($cities->isEmpty()) {
+            return ApiResponse::errorResponse(false, __('messages.no_regions_found'));
+        }
+
+        return ApiResponse::sendResponse(true, __('messages.areas_retrieved_successful'), $cities);
     }
-
-    // تحديد اللغة المطلوبة من الهيدر أو القيمة الافتراضية
-    $lang = request()->header('lang', app()->getLocale());
-
-    // جلب جميع المناطق للدولة مع جميع بياناتها بدون `name_ar` و `name_en`
-    $cities = Area::where('country_id', $country_id)->get()->map(function ($city) use ($lang) {
-        return [
-            'id'         => $city->id,
-            'name'       => $lang === 'ar' ? $city->name_ar : $city->name_en,
-            'country_id' => $city->country_id,
-            'coordinates' => $city->coordinates,
-            'status'     => $city->status,
-            'latitude'   => $city->latitude,
-            'longitude'  => $city->longitude,
-            'radius'     => $city->radius,
-            'created_at' => $city->created_at,
-            'updated_at' => $city->updated_at,
-        ];
-    });
-
-    if ($cities->isEmpty()) {
-        return ApiResponse::errorResponse(false, __('messages.no_regions_found'));
-    }
-
-    return ApiResponse::sendResponse(true, __('messages.areas_retrieved_successful'), $cities);
-}
 
 
 
@@ -499,7 +499,7 @@ public function getAreasForUserCountry(): JsonResponse
         if ($order->user) {
             Notification::send($order->user, new NewOrderNotification($order));
             NotificationModel::create([
-                'notifiable_id' => $order->user->id, 
+                'notifiable_id' => $order->user->id,
                 'notifiable_type' => get_class($order->user),
                 'user_id' => $order->user->id,
                 'title_ar' => "{$driver->first_name} {$driver->last_name}",
@@ -587,8 +587,8 @@ public function getAreasForUserCountry(): JsonResponse
 
         // حفظ الإشعار في قاعدة البيانات
         NotificationModel::create([
-             'notifiable_id' => $order->user->id, 
-             'notifiable_type' => get_class($order->user),
+            'notifiable_id' => $order->user->id,
+            'notifiable_type' => get_class($order->user),
             'title_ar' => __("messages.hawe-tawsel"),
             'title_en' => __("messages.hawe-tawsel"),
             'description_en' => __("messages.ordercancel", [], 'en'),
@@ -598,38 +598,38 @@ public function getAreasForUserCountry(): JsonResponse
 
         return ApiResponse::sendResponse(true, 'Order has been cancelled by the driver');
     }
-  public function getOrdersByStatus(Request $request): JsonResponse
-{
-    $driver = Auth::guard('driver')->user();
+    public function getOrdersByStatus(Request $request): JsonResponse
+    {
+        $driver = Auth::guard('driver')->user();
 
-    if (!$driver) {
-        return ApiResponse::errorResponse(false, __('messages.unauthorized'));
-    }
+        if (!$driver) {
+            return ApiResponse::errorResponse(false, __('messages.unauthorized'));
+        }
 
-    $validStatuses = ['bookOrder', 'receiveOrder', 'finished', 'back', 'finishedBack'];
+        $validStatuses = ['bookOrder', 'receiveOrder', 'finished', 'back', 'finishedBack'];
 
-    // التحقق من أن الحالة المرسلة صحيحة
-    $status = $request->input('status');
+        // التحقق من أن الحالة المرسلة صحيحة
+        $status = $request->input('status');
 
-    if (!in_array($status, $validStatuses)) {
-        return ApiResponse::errorResponse(false, __('messages.invalid_status'));
-    }
+        if (!in_array($status, $validStatuses)) {
+            return ApiResponse::errorResponse(false, __('messages.invalid_status'));
+        }
 
-    // جلب الطلبات حسب الحالة المختارة
-    $orders = Order::where('status', $status)
-        ->where('driver_id', $driver->id)
-        ->get();
+        // جلب الطلبات حسب الحالة المختارة
+        $orders = Order::where('status', $status)
+            ->where('driver_id', $driver->id)
+            ->get();
 
 
 
-    return ApiResponse::sendResponse(true, __('messages.orders_retrieved_successfully'), [
+        return ApiResponse::sendResponse(true, __('messages.orders_retrieved_successfully'), [
             'order' => $orders,
             'currency' => $driver->country->currency,
         ]);
-}
+    }
 
 
-//  public function createOrder(Request $request)
+    //  public function createOrder(Request $request)
 // {
 //     $driver = Auth::user();
 //     $lang = App::getLocale();
@@ -639,91 +639,91 @@ public function getAreasForUserCountry(): JsonResponse
 //         'area_id' => 'nullable|exists:areas,id',
 //     ]);
 
-//     $orders = Order::query()
+    //     $orders = Order::query()
 //         ->where('status', 'create')
 //         ->whereHas('transactions', function ($query) {
 //             $query->where('status', 'success');
 //         });
 
-//     if ($request->order_type == 'inside') {
+    //     if ($request->order_type == 'inside') {
 //         $orders->whereColumn('area_sender_id', '=', 'area_receiver_id');
 //     } elseif ($request->order_type == 'outside') {
 //         $orders->whereColumn('area_sender_id', '<>', 'area_receiver_id');
 //     }
 
-//     if ($request->filled('area_id')) {
+    //     if ($request->filled('area_id')) {
 //         $orders->where(function ($query) use ($request) {
 //             $query->where('area_sender_id', $request->area_id)
 //                 ->orWhere('area_receiver_id', $request->area_id);
 //         });
 //     }
 
-//     $orders = $orders->get();
+    //     $orders = $orders->get();
 
-//     if ($orders->isEmpty()) {
+    //     if ($orders->isEmpty()) {
 //         return ApiResponse::sendResponse(false, __('messages.no_orders_found'),[
 //             'order' => []
 //             ]);
 //     }
 
-//     return ApiResponse::sendResponse(true,  __('messages.orders_retrieved_successfully'), [
+    //     return ApiResponse::sendResponse(true,  __('messages.orders_retrieved_successfully'), [
 //         'orders' => OrderResource::collection($orders),
 //         'currency' => $currency,
 //     ]);
 // }
-public function createOrder(Request $request)
-{
-    $driver = Auth::user();
-    $currency = $driver->country->currency;
+    public function createOrder(Request $request)
+    {
+        $driver = Auth::user();
+        $currency = $driver->country->currency;
 
-    $request->validate([
-        'order_type' => 'required|in:inside,outside',
-        'area_id' => 'required|exists:areas,id',
-    ]);
-     $unreadCount = NotificationModel::where('notifiable_id', $driver->id)
+        $request->validate([
+            'order_type' => 'required|in:inside,outside',
+            'area_id' => 'required|exists:areas,id',
+        ]);
+        $unreadCount = NotificationModel::where('notifiable_id', $driver->id)
             ->where('notifiable_type', get_class($driver))
             ->where('is_read', false)
             ->count();
 
-    $orders = Order::where('status', 'create')
-        ->whereNull('driver_id')
-        ->whereHas('transactions', function ($query) {
-            $query->where('status', 'success');
-        });
+        $orders = Order::where('status', 'create')
+            ->whereNull('driver_id')
+            ->whereHas('transactions', function ($query) {
+                $query->where('status', 'success');
+            });
 
-    if ($request->order_type == 'inside') {
-        // الطلبات داخل نفس المدينة
-        $orders->whereColumn('area_sender_id', '=', 'area_receiver_id')
-               ->where('area_sender_id', $request->area_id);
-    } elseif ($request->order_type == 'outside') {
-        // الطلبات بين مدن مختلفة
-        $orders->whereRaw('area_sender_id <> area_receiver_id')
-               ->where(function ($query) use ($request) {
+        if ($request->order_type == 'inside') {
+            // الطلبات داخل نفس المدينة
+            $orders->whereColumn('area_sender_id', '=', 'area_receiver_id')
+                ->where('area_sender_id', $request->area_id);
+        } elseif ($request->order_type == 'outside') {
+            // الطلبات بين مدن مختلفة
+            $orders->whereRaw('area_sender_id <> area_receiver_id')
+                ->where(function ($query) use ($request) {
                     $query->where('area_sender_id', $request->area_id);
-               });
-    }
+                });
+        }
 
-    // **للتأكد من صحة الاستعلام، قم بفحص SQL قبل التنفيذ**
-     // 🔎 للكشف عن أي مشكلة في الاستعلام
+        // **للتأكد من صحة الاستعلام، قم بفحص SQL قبل التنفيذ**
+        // 🔎 للكشف عن أي مشكلة في الاستعلام
 
-    $orders = $orders->get();
+        $orders = $orders->get();
 
-    if ($orders->isEmpty()) {
-        return ApiResponse::sendResponse(false, __('messages.no_orders_found'), [
-            'orders' => []
+        if ($orders->isEmpty()) {
+            return ApiResponse::sendResponse(false, __('messages.no_orders_found'), [
+                'orders' => []
+            ]);
+        }
+
+        return ApiResponse::sendResponse(true, __('messages.orders_retrieved_successfully'), [
+            'orders' => OrderResource::collection($orders),
+            'currency' => $currency,
+            'notifications' => $unreadCount
         ]);
     }
 
-    return ApiResponse::sendResponse(true, __('messages.orders_retrieved_successfully'), [
-        'orders' => OrderResource::collection($orders),
-        'currency' => $currency,
-        'notifications' =>$unreadCount
-    ]);
-}
 
 
 
-    
 
 
 
@@ -788,21 +788,21 @@ public function createOrder(Request $request)
     }
     public function orderReceiver()
     {
-      $user = Auth::user();
+        $user = Auth::user();
 
-      $orders = Order::where('phone_receiver', $user->phone)
-       ->whereHas('transactions', function ($query) use ($user) {
-        $query->where('status', 'success')
-              ->where('user_id', $user->id); 
-    })
-    ->select(['id', 'orderNumber', 'status', 'city_receiver', 'city_sender', 'pickup_date', 'delivery_date'])
-    ->latest()
-    ->get();
-    if ($orders->isEmpty()) {
-        return ApiResponse::errorResponse(false, 'No Orders Exist for Receiver');
-    }
+        $orders = Order::where('phone_receiver', $user->phone)
+            ->whereHas('transactions', function ($query) use ($user) {
+                $query->where('status', 'success')
+                    ->where('user_id', $user->id);
+            })
+            ->select(['id', 'orderNumber', 'status', 'city_receiver', 'city_sender', 'pickup_date', 'delivery_date'])
+            ->latest()
+            ->get();
+        if ($orders->isEmpty()) {
+            return ApiResponse::errorResponse(false, 'No Orders Exist for Receiver');
+        }
 
-    return ApiResponse::sendResponse(true, 'Orders Retrieved Successfully', $orders);
+        return ApiResponse::sendResponse(true, 'Orders Retrieved Successfully', $orders);
     }
 
     public function addressSender()
@@ -954,7 +954,7 @@ public function createOrder(Request $request)
     public function orderSender()
     {
         $user = Auth::user();
-  $orders = Order::where('user_id', $user->id)
+        $orders = Order::where('user_id', $user->id)
             ->whereHas('transactions', function ($query) {
                 $query->where('status', 'success'); // التحقق من حالة الدفع الناجحة
             })
@@ -968,9 +968,9 @@ public function createOrder(Request $request)
 
         return ApiResponse::sendResponse(true, 'Data Retrieved Successfully', $orders);
     }
-    
-    
-     public function rate(Request $request): JsonResponse
+
+
+    public function rate(Request $request): JsonResponse
     {
         $user = Auth::guard('user')->user();
         $validatedData = $request->validate([
@@ -990,13 +990,21 @@ public function createOrder(Request $request)
 
         return ApiResponse::sendResponse(true, 'Order rate updated successfully', new OrderResource($order));
     }
-    
-     public function areaDriver()
+
+    public function areaDriver()
     {
         $driver = Auth::user();
-        $lang = App::getLocale();
+        $lang = App::getLocale();   
+
         $areas = Area::where('country_id', $driver->country_id)
             ->select('id', $lang === 'ar' ? 'name_ar as name' : 'name_en as name')
+            ->withCount([
+                'orders as countOrder' => function ($query) {
+                    $query->whereHas('transactions', function ($q) {
+                        $q->where('status', 'success');
+                    });
+                }
+            ])
             ->get();
 
         if ($areas->isEmpty()) {
@@ -1007,12 +1015,12 @@ public function createOrder(Request $request)
     }
 
 
-public function orderStatus(Order $order)
+    public function orderStatus(Order $order)
     {
         $user = Auth::user();
 
         $transaction = Transaction::where('order_id', $order->id)->first();
-      
+
         if (!$order) {
             return ApiResponse::errorResponse(false, __('messages.order_not_found'));
         }
@@ -1021,7 +1029,7 @@ public function orderStatus(Order $order)
             'orderNumber' => $order->orderNumber,
             'secretKey' => $order->secret_key,
             'status' => $transaction->status,
-           
+
         ]);
     }
 }

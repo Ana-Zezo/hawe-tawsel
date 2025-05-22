@@ -91,7 +91,7 @@ class Order extends Model
 
 	public function transactions()
 	{
-		return $this->hasMany(Transaction::class, 'order_id');
+		return $this->hasMany(Transaction::class);
 	}
 
 	protected static function boot()

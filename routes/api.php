@@ -4,10 +4,12 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\Address;
 use Illuminate\Http\Request;
+use App\Trait\OTPVerification;
 use App\Http\Middleware\EnsureUser;
 use Illuminate\Support\Facades\App;
 use App\Http\Middleware\LogRequests;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use App\Notifications\NewOrderNotification;
 use App\Http\Controllers\Api\AuthController;
@@ -17,8 +19,8 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\SenderController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\CountryController;
-use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\HomeUserController;
+use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\FatoorahPaymentController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Notifications\OrderStatusUpdatedNotification;
@@ -80,4 +82,9 @@ Route::middleware([EnsureUser::class])->group(function () {
 
     Route::post('/complaints', [ComplaintController::class, 'store']);
     //------------------------Complaint----------------------------
+});
+
+Route::post('/test-sms', function (OTPVerification $smsService) {
+    $response = $smsService->sendOTP('580087671', '1234');
+    return response()->json($response);
 });

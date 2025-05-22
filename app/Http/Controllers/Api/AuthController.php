@@ -44,7 +44,7 @@ class AuthController extends Controller
     {
         $data = $request->validated();
         $data['otp'] = rand(111111, 999999);
-
+         
         $country = Country::find($data['country_id']);
         if (!$country) {
             return ApiResponse::errorResponse(false, __('Invalid country selected'));
@@ -64,6 +64,7 @@ class AuthController extends Controller
             ['phone' => $data['phone']],
             array_filter($data)
         );
+        OTPVerification::sendOTP($data['phone'], $user['otp']);
         if ($request->hasFile('image') && $request->file('image')->isValid()) {
             $data['image'] = $this->storeImage($request->file('image'), 'uploads/images/users');
         }
@@ -176,26 +177,26 @@ class AuthController extends Controller
     //     }
     // }
     public function logout()
-{
-    try {
-        $user = Auth::guard('user')->user();
+    {
+        try {
+            $user = Auth::guard('user')->user();
 
-        if (!$user) {
-            return ApiResponse::sendResponse(false, 'No authenticated user.');
+            if (!$user) {
+                return ApiResponse::sendResponse(false, 'No authenticated user.');
+            }
+
+            if ($user->currentAccessToken()) {
+                $user->currentAccessToken()->delete();
+                return ApiResponse::sendResponse(true, 'Logout Successful!');
+            }
+
+            return ApiResponse::sendResponse(false, 'No active session found.');
+        } catch (\Exception $e) {
+            return ApiResponse::sendResponse(false, 'Something went wrong.', [
+                'error' => $e->getMessage(),
+            ]);
         }
-
-        if ($user->currentAccessToken()) {
-            $user->currentAccessToken()->delete();
-            return ApiResponse::sendResponse(true, 'Logout Successful!');
-        }
-
-        return ApiResponse::sendResponse(false, 'No active session found.');
-    } catch (\Exception $e) {
-        return ApiResponse::sendResponse(false, 'Something went wrong.', [
-            'error' => $e->getMessage(),
-        ]);
     }
-}
 
 
     public function forgetPassword(Request $request)
@@ -210,6 +211,8 @@ class AuthController extends Controller
 
         $otp = rand(111111, 999999);
         $user = User::where('phone', $request->phone)->where('is_verify', true)->first();
+        OTPVerification::sendOTP($user['phone'], $user['otp']);
+
 
         if (!$user) {
             return ApiResponse::sendResponse(false, 'User not found');
@@ -291,6 +294,8 @@ class AuthController extends Controller
             'phone' => 'required|string'
         ]);
         $user = User::where('phone', $request->phone)->first();
+        OTPVerification::sendOTP($data['phone'], $user['otp']);
+
         if (!$user) {
             return ApiResponse::sendResponse(false, 'User not found');
         }

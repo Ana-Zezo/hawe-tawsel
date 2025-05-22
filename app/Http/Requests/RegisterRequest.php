@@ -57,6 +57,7 @@ class RegisterRequest extends FormRequest
             'phone' => [
                 'required',
                 'string',
+                
                 // 'unique:users,phone,' . Auth::id(), // Prevent duplicate phone errors
             ],
         ];

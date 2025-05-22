@@ -23,7 +23,12 @@ Route::get('/test', function () {
         // Artisan::call('db:seed --class=AdminSeeder');
         // Artisan::call('make:migration add_country_id_to_withdraws_table');
         // Artisan::call('make:migration add_country_id_to_complains_table');
-        // Artisan::call('migrate');
+        Artisan::call('config:clear');
+        Artisan::call('view:clear');
+        Artisan::call('cache:clear');
+        Artisan::call('optimize:clear');
+        Artisan::call('route:clear');
+        dd(Artisan::call('route:list'));
         // exec('composer require maatwebsite/excel:^3.1');
 
 });
